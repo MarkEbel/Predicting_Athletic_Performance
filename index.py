@@ -258,7 +258,10 @@ def saveModel(model, name):
     dump(model, name+'.joblib')
 def loadModel(loc):
     from joblib import load
-    return load(loc+'.joblib')
+    try:
+        return load(loc+'.joblib')
+    except:
+        return "No Model"
 def binValues(vals, binSize):
     b = np.digitize(vals, range(110,380,binSize))
     b = 110 + binSize/2 + (b-1)*binSize
@@ -392,11 +395,40 @@ def oversampled():
     print(reg.score(X_test,y_test))
 
 def baselineModel():
-    ... # create and save # repeat for multiple runs # choose best
+    bl = loadModel("baseline")
+    y = POgiven()
+    d, groups = descriptors()
+    nonEmptyIndexs = ~np.isnan(d).any(axis=1)
+    y= y[nonEmptyIndexs] 
+    d= d[nonEmptyIndexs]
+    groups= groups[nonEmptyIndexs]
+    if bl == "No Model":
+
+        from sklearn.model_selection import GroupShuffleSplit
+        gss = GroupShuffleSplit(n_splits=1, train_size=.6)
+        idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(d, y, groups)][0]
+        train_idx = idx[0]
+        test_idx = idx[1]
+        X_train, X_test, y_train, y_test = d[train_idx],d[test_idx],y[train_idx],y[test_idx] #, random_state=0)
+        bestM = Ridge().fit(X_train, y_train)
+        bScore = bestM.score(X_test,y_test)
+        for i in range(100):
+            gss = GroupShuffleSplit(n_splits=1, train_size=.6)
+            idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(d, y, groups)][0]
+            train_idx = idx[0]
+            test_idx = idx[1]
+            X_train, X_test, y_train, y_test = d[train_idx],d[test_idx],y[train_idx],y[test_idx] #, random_state=0)
+            
+            m = Ridge().fit(X_train, y_train)
+            if(m.score(X_test,y_test)>bScore):
+                bestM = m
+                bScore = bestM.score(X_test,y_test)
+        saveModel(bestM, "baseline")
     # if exists just load model
     # just decriptors
-# combined()
 
+baselineModel()
+# combined()
 # Tasks:
 
 #formular for CP - model to workout formular unsupervisored 
