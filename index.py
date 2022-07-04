@@ -394,15 +394,18 @@ def oversampled():
     reg = Ridge().fit(X_train, y_train) #Ridge
     print(reg.score(X_test,y_test))
 
-def baselineModel():
-    bl = loadModel("baseline")
+def baselineModel(w,ignore=False, iterations=100):
+    bl = loadModel("baselineCP")
     y = POgiven()
+    if w:
+        bl = loadModel("baselineWprime")
+        y = wPrime()
     d, groups = descriptors()
     nonEmptyIndexs = ~np.isnan(d).any(axis=1)
     y= y[nonEmptyIndexs] 
     d= d[nonEmptyIndexs]
     groups= groups[nonEmptyIndexs]
-    if bl == "No Model":
+    if bl == "No Model" or ignore:
 
         from sklearn.model_selection import GroupShuffleSplit
         gss = GroupShuffleSplit(n_splits=1, train_size=.6)
@@ -412,7 +415,7 @@ def baselineModel():
         X_train, X_test, y_train, y_test = d[train_idx],d[test_idx],y[train_idx],y[test_idx] #, random_state=0)
         bestM = Ridge().fit(X_train, y_train)
         bScore = bestM.score(X_test,y_test)
-        for i in range(100):
+        for i in range(iterations):
             gss = GroupShuffleSplit(n_splits=1, train_size=.6)
             idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(d, y, groups)][0]
             train_idx = idx[0]
@@ -423,11 +426,21 @@ def baselineModel():
             if(m.score(X_test,y_test)>bScore):
                 bestM = m
                 bScore = bestM.score(X_test,y_test)
-        saveModel(bestM, "baseline")
+        if w:
+            saveModel(bestM, "baselineWprime")
+            print(bScore)
+            return bestM
+        else:
+            saveModel(bestM, "baselineCP")
+
+            print(bScore)
+            return bestM
+    else:
+        return bl
     # if exists just load model
     # just decriptors
 
-baselineModel()
+# baselineModel(True,True,1000)
 # combined()
 # Tasks:
 
