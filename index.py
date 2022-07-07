@@ -246,7 +246,7 @@ def VO2(amount):
 
 
 # Descriptorgraph(100)
-# POgraph(1)
+# POgraph(2)
 # VO2graph()
 # Cgraph()
 # POplotted()
@@ -302,7 +302,7 @@ def wPrime():
     return scores
 
 def combined():
-    y = wPrime()#POgiven()
+    y = POgiven() #wPrime()
     d, groups = descriptors()
     # print(len(~np.isnan(d).any(axis=1)))
     nonEmptyIndexs = ~np.isnan(d).any(axis=1)
@@ -314,7 +314,7 @@ def combined():
     groups = groups[nonEmptyIndexs]
     from sklearn.model_selection import GroupShuffleSplit
     gss = GroupShuffleSplit(n_splits=1, train_size=.6)
-    for i in range(1,120): #(2,100):
+    for i in range(1,150): #(2,100):
         c, peaksC  =  Cadenece(i)
         p, peaksPO = PO(i)
         v, peaksVO = VO2(i)
@@ -325,13 +325,13 @@ def combined():
         peaksPO = peaksPO[nonEmptyIndexs]
         peaksVO = peaksVO[nonEmptyIndexs]
         peaksC = peaksC[nonEmptyIndexs]
-        # X = d
+        X = p
         # print(peaksC)
         # X = np.concatenate((peaksPO, peaksC, peaksVO), axis=1) # c,p,v
-        X = np.concatenate((d,peaksPO, peaksC, peaksVO), axis=1) # c,p,v
-        from sklearn.decomposition import PCA
-        pca = PCA(n_components=4)
-        X = pca.fit_transform(X)
+        # X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1) # c,p,v
+        # from sklearn.decomposition import PCA
+        # pca = PCA(n_components=4)
+        # X = pca.fit_transform(X)
 
         idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
         train_idx = idx[0]
@@ -341,13 +341,14 @@ def combined():
         # print(y_test)
         # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)#, random_state=0)
         reg = Ridge().fit(X_train, y_train) #Ridge
-        plt.scatter(i+5,reg.score(X_test, y_test), c='black')
+        plt.scatter(i+5,RMSE(reg,X_test, y_test), c='black')
+        # plt.scatter(i+5,reg.score(X_test, y_test), c='black')
+        # plt.scatter(i+5,reg.score(X_test, y_test), c='black')
     plt.xlabel('Time used')
     plt.ylabel('Score')
     plt.title('Ridge regression - Combined Features')
     plt.show()
 
-# combined()
 def oversampled():
     import smogn
     y = POgiven()
@@ -393,6 +394,8 @@ def oversampled():
     X_train = np.array(X_smogn[['X1','X2','X3','X4','X5','X6','X7','X8']])
     reg = Ridge().fit(X_train, y_train) #Ridge
     print(reg.score(X_test,y_test))
+    print(RMSE(reg,X_test,y_test))
+    print(MAE(reg,X_test,y_test))
 
 def baselineModel(w,ignore=False, iterations=100):
     bl = loadModel("baselineCP")
@@ -434,26 +437,43 @@ def baselineModel(w,ignore=False, iterations=100):
             saveModel(bestM, "baselineCP")
 
             print(bScore)
+            print(RMSE(bestM,X_test,y_test))
+            print(MAE(bestM,X_test,y_test))
             return bestM
     else:
         return bl
-    # if exists just load model
-    # just decriptors
 
-# baselineModel(True,True,1000)
-# combined()
+def MSE(model,X,y):
+    predY = model.predict(X)
+    return sum((y-predY)**2)/len(y)
+
+def RMSE(model,X,y):
+    return (MSE(model,X,y))**(1/2)
+
+def MAE(model,X,y):
+    predY = model.predict(X)
+    return sum(np.abs(y-predY))/(len(y))
+
+# baselineModel(False,True,1)
+combined()
+# oversampled()
+
 # Tasks:
-
-#formular for CP - model to workout formular unsupervisored 
-# drop in error graph
+# check/fix previous work
+# put oversampled into combined
+# set up combined so a bunch of options can be setup for each run
+# save graph instead of output to screen
+# run load of combined
 # pca on PO
-# implement other score/error metrics
-# make one model 'baseline' - just descriptors (as this uses none of 3mt data)
-# ridge regression and other types look at
+# implement - mean squared error
+#  Mean Absolute error
+# drop in error graph
 # implement neural networks
+# got to test on same stuff to compare
+#formular for CP - model to workout formular unsupervisored 
 # start report - rewrite introduction, related work
 # start presentation
-# look at research practice and professionalism
+# start project logbook - research practice and professionalism
 
 
 
