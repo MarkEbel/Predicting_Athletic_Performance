@@ -47,7 +47,7 @@ def compute_avg_intervals_sum(data, interval):
     return tmpData
 def descriptorModel(test):
     y = POgiven()
-    X = descriptors()
+    X,groups = descriptors()
     y= y[~np.isnan(X).any(axis=1)]
     X= X[~np.isnan(X).any(axis=1)]
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)#, random_state=0)
@@ -61,10 +61,16 @@ def POgraph(iterations):
     y = POgiven()
     plotX = []
     plotY = []
+    from sklearn.model_selection import GroupShuffleSplit
+    gss = GroupShuffleSplit(n_splits=1, train_size=.6)
     for j in range(iterations):
         for i in range(1,100): #(2,100):
-            X  =  PO(i) # VO2(i)np.concatenate(POplotted(i), CadenecePlotted(i))
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)#, random_state=0)
+            X, peaks  =  PO(i) # VO2(i)np.concatenate(POplotted(i), CadenecePlotted(i))7
+            d , groups = descriptors()
+            idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
+            train_idx = idx[0]
+            test_idx = idx[1]
+            X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx]
             reg = Ridge().fit(X_train, y_train)
             plotX.append(i+14)
             plotY.append(reg.score(X_test, y_test))
@@ -79,9 +85,15 @@ def POgraph(iterations):
 
 def VO2graph():
     y = POgiven()
+    from sklearn.model_selection import GroupShuffleSplit
+    gss = GroupShuffleSplit(n_splits=1, train_size=.6)
     for i in range(24,100): #(2,100):
-        X  =  VO2(i) #np.concatenate(POplotted(i), CadenecePlotted(i))
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)#, random_state=0)
+        X, peaks  =  VO2(i) # VO2(i)np.concatenate(POplotted(i), CadenecePlotted(i))7
+        d , groups = descriptors()
+        idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
+        train_idx = idx[0]
+        test_idx = idx[1]
+        X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx]
         reg = LinearRegression().fit(X_train, y_train)
         plt.scatter(i+2,reg.score(X_test, y_test), c='black')
     plt.xlabel('Time used')
@@ -92,9 +104,15 @@ def VO2graph():
 
 def Cgraph():
     y = POgiven()
+    from sklearn.model_selection import GroupShuffleSplit
+    gss = GroupShuffleSplit(n_splits=1, train_size=.6)
     for i in range(1,100): #(2,100):
-        X  =  Cadenece(i)
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)#, random_state=0)
+        X, peaks  =  Cadenece(i) # VO2(i)np.concatenate(POplotted(i), CadenecePlotted(i))7
+        d , groups = descriptors()
+        idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
+        train_idx = idx[0]
+        test_idx = idx[1]
+        X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx]
         reg = Ridge().fit(X_train, y_train)
         plt.scatter(i+5,reg.score(X_test, y_test), c='black')
     plt.xlabel('Time used')
@@ -244,15 +262,6 @@ def VO2(amount):
     return np.array(outStuff), np.array(peaks)
 
 
-
-# Descriptorgraph(100)
-# POgraph(2)
-# VO2graph()
-# Cgraph()
-# POplotted()
-# CadenecePlotted()
-# VO2_plotted()
-
 def saveModel(model, name):
     from joblib import dump
     dump(model, name+'.joblib')
@@ -301,8 +310,10 @@ def wPrime():
     scores = np.array(scores)
     return scores
 
-def combined():
-    y = POgiven() #wPrime()
+def combined(w):
+    y = POgiven()
+    if w:
+        y = wPrime()
     d, groups = descriptors()
     # print(len(~np.isnan(d).any(axis=1)))
     nonEmptyIndexs = ~np.isnan(d).any(axis=1)
@@ -325,10 +336,11 @@ def combined():
         peaksPO = peaksPO[nonEmptyIndexs]
         peaksVO = peaksVO[nonEmptyIndexs]
         peaksC = peaksC[nonEmptyIndexs]
-        X = p
+        # X = p
         # print(peaksC)
-        # X = np.concatenate((peaksPO, peaksC, peaksVO), axis=1) # c,p,v
-        # X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1) # c,p,v
+        # X = np.concatenate((p,d), axis=1) # c,p,v
+        # X = np.concatenate((d,peaksPO, peaksC, peaksVO), axis=1) # c,p,v
+        X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1) # c,p,v # best for W prime
         # from sklearn.decomposition import PCA
         # pca = PCA(n_components=4)
         # X = pca.fit_transform(X)
@@ -341,8 +353,8 @@ def combined():
         # print(y_test)
         # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)#, random_state=0)
         reg = Ridge().fit(X_train, y_train) #Ridge
-        plt.scatter(i+5,RMSE(reg,X_test, y_test), c='black')
-        # plt.scatter(i+5,reg.score(X_test, y_test), c='black')
+        # plt.scatter(i+5,RMSE(reg,X_test, y_test), c='black')
+        plt.scatter(i+5,reg.score(X_test, y_test), c='black')
         # plt.scatter(i+5,reg.score(X_test, y_test), c='black')
     plt.xlabel('Time used')
     plt.ylabel('Score')
@@ -454,15 +466,21 @@ def MAE(model,X,y):
     predY = model.predict(X)
     return sum(np.abs(y-predY))/(len(y))
 
-# baselineModel(False,True,1)
-combined()
+# baselineModel(True,True,100000)
+combined(True)
 # oversampled()
 
+# Descriptorgraph(100)
+# POgraph(2)
+# VO2graph()
+# Cgraph()
+# POplotted()
+# VO2_plotted()
+
 # Tasks:
-# check/fix previous work
+# can run each model 1000 times etc in combined
 # put oversampled into combined
 # set up combined so a bunch of options can be setup for each run
-# save graph instead of output to screen
 # run load of combined
 # pca on PO
 # implement - mean squared error
@@ -481,3 +499,4 @@ combined()
 # given peaks are from whole test so cant be used - we also dont have data they are generated from
 # standard score - 'name' - is the amount of variance that can be explained by the model
 # w' is the area under the curve above this critical power
+# W Prime has lot more needing predicting baseline is pretty good for CP
