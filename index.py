@@ -4,8 +4,10 @@
 # function - save to csv
 from cProfile import label
 from black import out
+from click import option
 import pandas as pd
 import numpy as np
+from sqlalchemy import over
 from yaml import load
 
 
@@ -310,58 +312,7 @@ def wPrime():
     scores = np.array(scores)
     return scores
 
-def combined(w):
-    y = POgiven()
-    if w:
-        y = wPrime()
-    d, groups = descriptors()
-    # print(len(~np.isnan(d).any(axis=1)))
-    nonEmptyIndexs = ~np.isnan(d).any(axis=1)
-    y= y[nonEmptyIndexs]
-    # y = binValues(y,5)
-    # print(y)
-    # print(~np.isnan(d).any(axis=1))
-    d= d[nonEmptyIndexs]
-    groups = groups[nonEmptyIndexs]
-    from sklearn.model_selection import GroupShuffleSplit
-    gss = GroupShuffleSplit(n_splits=1, train_size=.6)
-    for i in range(1,150): #(2,100):
-        c, peaksC  =  Cadenece(i)
-        p, peaksPO = PO(i)
-        v, peaksVO = VO2(i)
-        # print(len (c))
-        c = c[nonEmptyIndexs]
-        p = p[nonEmptyIndexs]
-        v = v[nonEmptyIndexs]
-        peaksPO = peaksPO[nonEmptyIndexs]
-        peaksVO = peaksVO[nonEmptyIndexs]
-        peaksC = peaksC[nonEmptyIndexs]
-        # X = p
-        # print(peaksC)
-        # X = np.concatenate((p,d), axis=1) # c,p,v
-        # X = np.concatenate((d,peaksPO, peaksC, peaksVO), axis=1) # c,p,v
-        X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1) # c,p,v # best for W prime
-        # from sklearn.decomposition import PCA
-        # pca = PCA(n_components=4)
-        # X = pca.fit_transform(X)
-
-        idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
-        train_idx = idx[0]
-        test_idx = idx[1]
-        X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx] #, random_state=0)
-        # print(y_train)
-        # print(y_test)
-        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4)#, random_state=0)
-        reg = Ridge().fit(X_train, y_train) #Ridge
-        # plt.scatter(i+5,RMSE(reg,X_test, y_test), c='black')
-        plt.scatter(i+5,reg.score(X_test, y_test), c='black')
-        # plt.scatter(i+5,reg.score(X_test, y_test), c='black')
-    plt.xlabel('Time used')
-    plt.ylabel('Score')
-    plt.title('Ridge regression - Combined Features')
-    plt.show()
-
-def oversampled():
+def oversampledGraph():
     import smogn
     y = POgiven()
     d, groups = descriptors()
@@ -408,6 +359,55 @@ def oversampled():
     print(reg.score(X_test,y_test))
     print(RMSE(reg,X_test,y_test))
     print(MAE(reg,X_test,y_test))
+    # return X_train,y_train,X_test,y_test
+def oversampled(X,y):
+    import smogn
+    d, groups = descriptors()
+    nonEmptyIndexs = ~np.isnan(d).any(axis=1)
+    groups= groups[nonEmptyIndexs]
+    from sklearn.model_selection import GroupShuffleSplit
+    gss = GroupShuffleSplit(n_splits=1, train_size=.6)
+
+    idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
+    train_idx = idx[0]
+    test_idx = idx[1]
+    X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx] #, random_state=0)
+
+    r = np.arange(len(X_train[0]))
+    a = np.append(r,'CP')
+    com = np.append(X_train,[[Y] for Y in y_train], axis=1)
+    df = pd.DataFrame(com,columns=a)
+    # above line needs to be changed to work with variety of column nums
+    print(df)
+    X_smogn = smogn.smoter(
+            
+            data = df, 
+            y = 'CP' 
+        )
+    while True:
+        try:
+            X_smogn = smogn.smoter(
+                
+                data = df, 
+                y = 'CP' 
+            )
+            break
+
+        except:
+            print("Trying to resample")
+            gss = GroupShuffleSplit(n_splits=1, train_size=.6)
+
+            idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
+            train_idx = idx[0]
+            test_idx = idx[1]
+            X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx] #, random_state=0)
+
+            com = np.append(X_train,[[Y] for Y in y_train], axis=1)
+            df = pd.DataFrame(com,columns=a)
+
+    y_train = np.array(X_smogn['CP'])
+    X_train = np.array(X_smogn[r])
+    return X_train,y_train,X_test,y_test
 
 def baselineModel(w,ignore=False, iterations=100):
     bl = loadModel("baselineCP")
@@ -466,28 +466,80 @@ def MAE(model,X,y):
     predY = model.predict(X)
     return sum(np.abs(y-predY))/(len(y))
 
-# baselineModel(True,True,100000)
-combined(True)
-# oversampled()
+def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionScore = 1,saveOrShow = True, os = False) :
+    y = POgiven()
+    if w:
+        y = wPrime()
+    d, groups = descriptors()
+    nonEmptyIndexs = ~np.isnan(d).any(axis=1)
+    y= y[nonEmptyIndexs]
+    if binned:
+        y = binValues(y,5)
+    d= d[nonEmptyIndexs]
+    groups = groups[nonEmptyIndexs]
+    from sklearn.model_selection import GroupShuffleSplit
+    gss = GroupShuffleSplit(n_splits=1, train_size=.6)
+    for j in range(iterations):
+        for i in range(1,150): #(2,100):
+            c, peaksC  =  Cadenece(i)
+            p, peaksPO = PO(i)
+            v, peaksVO = VO2(i)
+            # print(len (c))
+            c = c[nonEmptyIndexs]
+            p = p[nonEmptyIndexs]
+            v = v[nonEmptyIndexs]
+            peaksPO = peaksPO[nonEmptyIndexs]
+            peaksVO = peaksVO[nonEmptyIndexs]
+            peaksC = peaksC[nonEmptyIndexs]
+            if optionX == 0:
+                X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1) # c,p,v # best for W prime
+            elif optionX == 1:
+                X = np.concatenate((d,peaksPO, peaksC, peaksVO), axis=1) # c,p,v
+            elif optionX == 2:
+                X = np.concatenate((p,d), axis=1) # c,p,v
+                
+            if pCA:
+                from sklearn.decomposition import PCA
+                pca = PCA(n_components=len(X[0]))
+                if(len(X[0])) >= 207:
+                    break
+                X = pca.fit_transform(X)
+                
 
-# Descriptorgraph(100)
-# POgraph(2)
-# VO2graph()
-# Cgraph()
-# POplotted()
-# VO2_plotted()
+            idx = [[train_idx, test_idx] for train_idx, test_idx in gss.split(X, y, groups)][0]
+            train_idx = idx[0]
+            test_idx = idx[1]
+            X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx] 
+
+            if os:
+                X_train, X_test, y_train, y_test = oversampled(X,y)
+
+            reg = Ridge().fit(X_train, y_train) 
+            if optionScore == 0:
+                plt.scatter(i+5,RMSE(reg,X_test, y_test), c='black')
+            elif optionScore == 1:
+                plt.scatter(i+5,reg.score(X_test, y_test), c='black')
+            elif optionScore == 2:
+                plt.scatter(i+5,MAE(reg,X_test, y_test), c='black')
+    plt.xlabel('Time used')
+    plt.ylabel('Score')
+    plt.title('Ridge regression - Combined Features')
+    if(saveOrShow):
+        plt.show()
+    else:    
+        plt.savefig('combined.png')
+
+combined(True,iterations=1,os=True)
+# then combine 'CP' with it
 
 # Tasks:
-# can run each model 1000 times etc in combined
-# put oversampled into combined
-# set up combined so a bunch of options can be setup for each run
-# run load of combined
-# pca on PO
-# implement - mean squared error
-#  Mean Absolute error
-# drop in error graph
+# make oversampled work with combined
+# need to change binned values to get max and min of data - doesnt currently work with W Prime
+# error in line 264?? VO2 function - might need more preprocessing - or cancel warning print out
+# make sure all units are the same for each sample  (can see this is not currently true)
+
+# need to use combined to suggest a model aka use 20 secs of data and then generate and save best model
 # implement neural networks
-# got to test on same stuff to compare
 #formular for CP - model to workout formular unsupervisored 
 # start report - rewrite introduction, related work
 # start presentation
@@ -500,3 +552,14 @@ combined(True)
 # standard score - 'name' - is the amount of variance that can be explained by the model
 # w' is the area under the curve above this critical power
 # W Prime has lot more needing predicting baseline is pretty good for CP
+
+
+
+# baselineModel(True,True,100000)
+# Descriptorgraph(100)
+# POgraph(2)
+# VO2graph()
+# Cgraph()
+# POplotted()
+# VO2_plotted()
+
