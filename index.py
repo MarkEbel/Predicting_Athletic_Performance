@@ -378,16 +378,15 @@ def oversampled(X,y):
     com = np.append(X_train,[[Y] for Y in y_train], axis=1)
     df = pd.DataFrame(com,columns=a)
     # above line needs to be changed to work with variety of column nums
-    print(df)
-    X_smogn = smogn.smoter(
-            
-            data = df, 
-            y = 'CP' 
-        )
+    # print(df)
+    # X_smogn = smogn.smoter(
+    #         data = df, 
+    #         y = 'CP' 
+    #     )
     while True:
         try:
             X_smogn = smogn.smoter(
-                
+                rel_coef=0.5,
                 data = df, 
                 y = 'CP' 
             )
@@ -404,9 +403,12 @@ def oversampled(X,y):
 
             com = np.append(X_train,[[Y] for Y in y_train], axis=1)
             df = pd.DataFrame(com,columns=a)
-
+            
+    r = [str(R) for R in r]
     y_train = np.array(X_smogn['CP'])
     X_train = np.array(X_smogn[r])
+    # print((y_train.shape))
+    # print((X_train.shape))
     return X_train,y_train,X_test,y_test
 
 def baselineModel(w,ignore=False, iterations=100):
@@ -512,7 +514,11 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
             X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx] 
 
             if os:
-                X_train, X_test, y_train, y_test = oversampled(X,y)
+                import sys
+                import os
+
+                X_train,y_train,X_test,y_test = oversampled(X,y)
+
 
             reg = Ridge().fit(X_train, y_train) 
             if optionScore == 0:
@@ -529,14 +535,17 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
     else:    
         plt.savefig('combined.png')
 
-combined(True,iterations=1,os=True)
-# then combine 'CP' with it
+combined(True,iterations=1,os=False, optionScore=2)
+
 
 # Tasks:
-# make oversampled work with combined
+# percent of error
 # need to change binned values to get max and min of data - doesnt currently work with W Prime
 # error in line 264?? VO2 function - might need more preprocessing - or cancel warning print out
 # make sure all units are the same for each sample  (can see this is not currently true)
+# does coeffience need changing for w Prime??
+# redo all graph images - title needs to be changed for each run
+
 
 # need to use combined to suggest a model aka use 20 secs of data and then generate and save best model
 # implement neural networks
