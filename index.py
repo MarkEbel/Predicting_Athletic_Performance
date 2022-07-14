@@ -254,6 +254,7 @@ def VO2(amount):
                 try:
                     tmp.append(float(dTmp))
                 except ValueError:
+                    tmp.append(float(0.0))
                     continue
             if(sum(np.array(tmp)) >0):
                 der = compute_derivative(tmp[0:amount],1)
@@ -274,8 +275,8 @@ def loadModel(loc):
     except:
         return "No Model"
 def binValues(vals, binSize):
-    b = np.digitize(vals, range(110,380,binSize))
-    b = 110 + binSize/2 + (b-1)*binSize
+    b = np.digitize(vals, range(int(np.floor(min(vals))),int(np.ceil(max(vals))),binSize))
+    b = int(np.floor(min(vals))) + binSize/2 + (b-1)*binSize
     return b
 def wPrime():
     from scipy.integrate import simps
@@ -468,6 +469,10 @@ def MAE(model,X,y):
     predY = model.predict(X)
     return sum(np.abs(y-predY))/(len(y))
 
+def MAEP(model,X,y):
+    predY = model.predict(X)
+    return sum(np.abs((y-predY)/y)*100)/(len(y))
+
 def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionScore = 1,saveOrShow = True, os = False) :
     y = POgiven()
     if w:
@@ -475,8 +480,6 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
     d, groups = descriptors()
     nonEmptyIndexs = ~np.isnan(d).any(axis=1)
     y= y[nonEmptyIndexs]
-    if binned:
-        y = binValues(y,5)
     d= d[nonEmptyIndexs]
     groups = groups[nonEmptyIndexs]
     from sklearn.model_selection import GroupShuffleSplit
@@ -513,6 +516,8 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
             test_idx = idx[1]
             X_train, X_test, y_train, y_test = X[train_idx],X[test_idx],y[train_idx],y[test_idx] 
 
+            if binned:
+                y_train = binValues(y_train,5)
             if os:
                 import sys
                 import os
@@ -527,6 +532,8 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
                 plt.scatter(i+5,reg.score(X_test, y_test), c='black')
             elif optionScore == 2:
                 plt.scatter(i+5,MAE(reg,X_test, y_test), c='black')
+            elif optionScore == 3:
+                plt.scatter(i+5,MAEP(reg,X_test, y_test), c='black')
     plt.xlabel('Time used')
     plt.ylabel('Score')
     plt.title('Ridge regression - Combined Features')
@@ -535,18 +542,14 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
     else:    
         plt.savefig('combined.png')
 
-combined(True,iterations=1,os=False, optionScore=2)
-
+# combined(True,iterations=3,optionX=0, optionScore=3)
+combined(True, binned=True, iterations=1,optionX=0, optionScore=3)
 
 # Tasks:
-# percent of error
-# need to change binned values to get max and min of data - doesnt currently work with W Prime
-# error in line 264?? VO2 function - might need more preprocessing - or cancel warning print out
-# make sure all units are the same for each sample  (can see this is not currently true)
-# does coeffience need changing for w Prime??
+# does coeffience need changing for w Prime?? - in oversampled - in binned
+
+
 # redo all graph images - title needs to be changed for each run
-
-
 # need to use combined to suggest a model aka use 20 secs of data and then generate and save best model
 # implement neural networks
 #formular for CP - model to workout formular unsupervisored 
