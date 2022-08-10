@@ -7,7 +7,7 @@ from black import out
 from click import option
 import pandas as pd
 import numpy as np
-from sqlalchemy import over
+from sqlalchemy import over, true
 from yaml import load
 
 
@@ -536,20 +536,74 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
                 plt.scatter(i+5,MAEP(reg,X_test, y_test), c='black')
     plt.xlabel('Time used')
     plt.ylabel('Score')
-    plt.title('Ridge regression - Combined Features')
+    t = 'Ridge regression - Combined Features - '
+    t = t+'i' + str(iterations)
+    t = t+'o' + str(optionX)
+    t = t+'s' + str(optionScore)
+    
+    if w:
+        t= t+'W'
+    else:
+        t= t+'CP'
+    if binned:
+        t = t+'b'
+    if pCA:
+        t = t+'p'
+    if os:
+        t = t+'OS'
+
+    plt.title(t) # i2, b, p, o1,s1,OS = i2bp01s1os - add to title/ generate name
     if(saveOrShow):
         plt.show()
     else:    
-        plt.savefig('combined.png')
+        
+        plt.savefig(t + 'combined.png')
 
 # combined(True,iterations=3,optionX=0, optionScore=3)
-combined(True, binned=True, iterations=1,optionX=0, optionScore=3)
+def descriptorClusters():
+    des, groups = descriptors()
+    p = POgiven()
+    for d in range(des.shape[1]):
+        plt.scatter(des[:,d],p)
+        plt.savefig(str(d )+ 'descriptor.png')#
+        plt.figure()
+
+descriptorClusters()
+# combined(True, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = True, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = False, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
+# combined(True, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = True, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = False, pCA = True, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = True)
+# combined(True, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = True, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = False, pCA = True, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
+# combined(True, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = True)
+
+# combined(False, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = True, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = False, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
+# combined(False, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = True, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = False, pCA = True, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = True)
+# combined(False, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = True, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = False, pCA = True, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
+# combined(False, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = True)
 
 # Tasks:
-# does coeffience need changing for w Prime?? - in oversampled - in binned
+# explore what descriptors are most useful
+# equalise classes for sex for test and train split
+# clustering of desciptors see any groups
+# use less for loops when calculating values and speed up code
+# dont run whole for 30 iterations just 5-35 seconds
 
-
-# redo all graph images - title needs to be changed for each run
+# find out current error 3%?
+# redo all graph images 
 # need to use combined to suggest a model aka use 20 secs of data and then generate and save best model
 # implement neural networks
 #formular for CP - model to workout formular unsupervisored 
