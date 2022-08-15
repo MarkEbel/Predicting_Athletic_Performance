@@ -1,22 +1,15 @@
 
-# function - read csv into dataframe
-# make function to compute derivatives at different time slots
-# function - save to csv
-from cProfile import label
-from black import out
-from click import option
-import pandas as pd
 import numpy as np
-from sqlalchemy import over, true
-from yaml import load
+import pandas as pd
 
-
-def compute_derivative(data, interval):
+# This function computates the derivates/gradients of the feature data given and the interval length
+def compute_derivative(data, interval): 
     tmpData = np.array([])
     for i in range(0, len(data)-interval):
         tmpData = np.append(tmpData, (data[i] - data[i+interval])/interval)
     return tmpData
 
+# This function was created when initally starting the project and is not used.
 def compute_avg_intervals(data, interval):
     i = 0
     tmpData = np.array([])
@@ -30,8 +23,8 @@ def compute_avg_intervals(data, interval):
             tmpSum = 0
     return tmpData
 
-# if d is zero???
-def compute_avg_intervals_sum(data, interval):
+# This is used in to calculate the cumulative sum for each second in time of each data sample in data
+def compute_cumulative_sum(data, interval):
     i = 0
     tmpData = np.array([])
     previous = 0.0
@@ -45,8 +38,10 @@ def compute_avg_intervals_sum(data, interval):
         i +=1
         if interval == i:
             i = 0
-            tmpData = np.append(tmpData, tmpSum/interval)
+            tmpData = np.append(tmpData, tmpSum)
     return tmpData
+
+#This is no longer used. I has been replaced by baseline model.
 def descriptorModel(test):
     y = POgiven()
     X,groups = descriptors()
@@ -59,6 +54,9 @@ def descriptorModel(test):
         return Ridge().fit(X_train, y_train)
 
 from sklearn.model_selection import train_test_split
+
+# The three functions below were used in the exploration of the initial dataset.
+#Shows a graph just using the derivates of power output and the descriptors
 def POgraph(iterations):
     y = POgiven()
     plotX = []
@@ -85,6 +83,8 @@ def POgraph(iterations):
     plt.title('Ridge regression - PO generated feature')
     plt.show()
 
+
+#Shows a graph just using the derivates of VO2 output and the descriptors
 def VO2graph():
     y = POgiven()
     from sklearn.model_selection import GroupShuffleSplit
@@ -104,6 +104,7 @@ def VO2graph():
     plt.show()
 
 
+#Shows a graph just using the derivates of cadence and the descriptors
 def Cgraph():
     y = POgiven()
     from sklearn.model_selection import GroupShuffleSplit
@@ -122,6 +123,7 @@ def Cgraph():
     plt.title('Ridge regression - Cadence')
     plt.show()
 
+# This functions produces a graph which contains many descriptor modules to see if they are consistenly the same based on train test split
 def Descriptorgraph(iterations):
     for i in range(iterations):
         reg, X_test,y_test = descriptorModel(True)
@@ -132,6 +134,7 @@ def Descriptorgraph(iterations):
     plt.title('Descriptor models')
     plt.show()
 
+# This function calculates the Critical power for each data sample.
 def POgiven():
     df = pd.read_csv('PO.csv')
     outStuff = []
@@ -148,6 +151,7 @@ def POgiven():
         outStuff.append(sum(np.array(tmp[-30:]))/30)
     return np.array(outStuff)
 
+# This function plots the derivates of the power output over time.
 def POplotted():
     df = pd.read_csv('PO.csv')
     outStuff = []
@@ -159,18 +163,17 @@ def POplotted():
                 tmp.append(float(dTmp))
             except ValueError:
                 continue
-        ai = compute_avg_intervals_sum(tmp,1)
+        ai = compute_cumulative_sum(tmp,1)
         der = compute_derivative(ai, 5)
         plt.plot(der,range(len(der)))
         # plt.plot(ai,range(len(ai)))
     plt.show()
 
-import numpy as np
-from sklearn.linear_model import LinearRegression
 import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.linear_model import Lasso, LinearRegression, Ridge
 
-from sklearn.linear_model import Ridge
-from sklearn.linear_model import Lasso
+# This function returns the descriptors for each sample.
 def descriptors():
     # dataset column is actually a userID column not a sampleID column
     # ignore when training - might be useful when finding power of each etc
@@ -186,6 +189,7 @@ def descriptors():
 
     return np.array(df), np.array(groups)
 
+# Similar to POplotted.
 def VO2_plotted():
     df = pd.read_csv('VO2.csv')
     import matplotlib.pyplot as plt
@@ -199,12 +203,12 @@ def VO2_plotted():
                 continue
         if(sum(np.array(tmp)) >0):
             der = tmp
-            ai = compute_avg_intervals_sum(tmp,2)
+            ai = compute_cumulative_sum(tmp,2)
             der = compute_derivative(ai, 2)
         plt.plot(ai,range(len(ai)))
     plt.show()
 
-
+# The 3 functions below return the derivate of the cummulative sum of the specific metric using time 0 to 'amount' of data for each sample.
 def PO(amount):
     df = pd.read_csv('PO.csv')
     outStuff = []
@@ -217,7 +221,7 @@ def PO(amount):
                 tmp.append(float(dTmp))
             except ValueError:
                 continue
-        ai = compute_avg_intervals_sum(tmp,1)
+        ai = compute_cumulative_sum(tmp,1)
         der = compute_derivative(ai, 5)
         outStuff.append(der[0:amount])
         peaks.append([np.max(np.array(tmp))])
@@ -235,7 +239,7 @@ def Cadenece(amount):
                 tmp.append(float(dTmp))
             except ValueError:
                 continue
-        ai = compute_avg_intervals_sum(tmp,1)
+        ai = compute_cumulative_sum(tmp,1)
         der = compute_derivative(ai, 5)
         outStuff.append(der[0:amount])
 
@@ -257,9 +261,9 @@ def VO2(amount):
                     tmp.append(float(0.0))
                     continue
             if(sum(np.array(tmp)) >0):
-                der = compute_derivative(tmp[0:amount],1)
-                der = compute_derivative(der,2)
-            outStuff.append(der)
+                ai = compute_cumulative_sum(tmp,1)
+                der = compute_derivative(ai, 10)
+            outStuff.append(der[0:amount])
 
             peaks.append([np.max(np.array(tmp))])
     return np.array(outStuff), np.array(peaks)
@@ -274,10 +278,12 @@ def loadModel(loc):
         return load(loc+'.joblib')
     except:
         return "No Model"
+
 def binValues(vals, binSize):
     b = np.digitize(vals, range(int(np.floor(min(vals))),int(np.ceil(max(vals))),binSize))
     b = int(np.floor(min(vals))) + binSize/2 + (b-1)*binSize
     return b
+# Below function returns W Prime approximations for each sample.
 def wPrime():
     from scipy.integrate import simps
     df = pd.read_csv('PO.csv')
@@ -360,7 +366,7 @@ def oversampledGraph():
     print(reg.score(X_test,y_test))
     print(RMSE(reg,X_test,y_test))
     print(MAE(reg,X_test,y_test))
-    # return X_train,y_train,X_test,y_test
+
 def oversampled(X,y):
     import smogn
     d, groups = descriptors()
@@ -378,12 +384,6 @@ def oversampled(X,y):
     a = np.append(r,'CP')
     com = np.append(X_train,[[Y] for Y in y_train], axis=1)
     df = pd.DataFrame(com,columns=a)
-    # above line needs to be changed to work with variety of column nums
-    # print(df)
-    # X_smogn = smogn.smoter(
-    #         data = df, 
-    #         y = 'CP' 
-    #     )
     while True:
         try:
             X_smogn = smogn.smoter(
@@ -408,10 +408,11 @@ def oversampled(X,y):
     r = [str(R) for R in r]
     y_train = np.array(X_smogn['CP'])
     X_train = np.array(X_smogn[r])
-    # print((y_train.shape))
-    # print((X_train.shape))
+
     return X_train,y_train,X_test,y_test
 
+# This function calculates a baseline model,prints the score, saves the model and returns the model.
+# if ignore is set to False it returns the currently saved model.
 def baselineModel(w,ignore=False, iterations=100):
     bl = loadModel("baselineCP")
     y = POgiven()
@@ -446,34 +447,36 @@ def baselineModel(w,ignore=False, iterations=100):
                 bScore = bestM.score(X_test,y_test)
         if w:
             saveModel(bestM, "baselineWprime")
-            print(bScore)
+            print(MAEP(bestM,X_test,y_test))
             return bestM
         else:
             saveModel(bestM, "baselineCP")
-
-            print(bScore)
-            print(RMSE(bestM,X_test,y_test))
-            print(MAE(bestM,X_test,y_test))
+            print(MAEP(bestM,X_test,y_test))
             return bestM
     else:
         return bl
 
+# Mean squared error function
 def MSE(model,X,y):
     predY = model.predict(X)
     return sum((y-predY)**2)/len(y)
 
+# Root mean squared error function
 def RMSE(model,X,y):
     return (MSE(model,X,y))**(1/2)
 
+# Mean absolute error function
 def MAE(model,X,y):
     predY = model.predict(X)
     return sum(np.abs(y-predY))/(len(y))
 
+# Mean absolute error probability function
 def MAEP(model,X,y):
     predY = model.predict(X)
     return sum(np.abs((y-predY)/y)*100)/(len(y))
 
-def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionScore = 1,saveOrShow = True, os = False) :
+# A function that combines previous functions.
+def combined(w, returnScores = False,startT=1, endT=150, iterations = 2,binned = False, pCA = False, optionX = 0,optionScore = 1,saveOrShow = True, os = False) :
     y = POgiven()
     if w:
         y = wPrime()
@@ -481,15 +484,15 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
     nonEmptyIndexs = ~np.isnan(d).any(axis=1)
     y= y[nonEmptyIndexs]
     d= d[nonEmptyIndexs]
+    errors = np.array([])
     groups = groups[nonEmptyIndexs]
     from sklearn.model_selection import GroupShuffleSplit
     gss = GroupShuffleSplit(n_splits=1, train_size=.6)
     for j in range(iterations):
-        for i in range(1,150): #(2,100):
+        for i in range(startT,endT): #(1,150):
             c, peaksC  =  Cadenece(i)
             p, peaksPO = PO(i)
             v, peaksVO = VO2(i)
-            # print(len (c))
             c = c[nonEmptyIndexs]
             p = p[nonEmptyIndexs]
             v = v[nonEmptyIndexs]
@@ -497,11 +500,13 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
             peaksVO = peaksVO[nonEmptyIndexs]
             peaksC = peaksC[nonEmptyIndexs]
             if optionX == 0:
-                X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1) # c,p,v # best for W prime
+                X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c), axis=1)
             elif optionX == 1:
-                X = np.concatenate((d,peaksPO, peaksC, peaksVO), axis=1) # c,p,v
+                X = np.concatenate((d,peaksPO, peaksC, peaksVO), axis=1)
             elif optionX == 2:
                 X = np.concatenate((p,d), axis=1) # c,p,v
+            elif optionX == 3:
+                X = np.concatenate((d,peaksPO, peaksC, peaksVO,p,c,v), axis=1)
                 
             if pCA:
                 from sklearn.decomposition import PCA
@@ -519,21 +524,25 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
             if binned:
                 y_train = binValues(y_train,5)
             if os:
-                import sys
                 import os
+                import sys
 
                 X_train,y_train,X_test,y_test = oversampled(X,y)
 
 
             reg = Ridge().fit(X_train, y_train) 
+            error = 0
             if optionScore == 0:
-                plt.scatter(i+5,RMSE(reg,X_test, y_test), c='black')
+                error = RMSE(reg,X_test, y_test)
             elif optionScore == 1:
-                plt.scatter(i+5,reg.score(X_test, y_test), c='black')
+                error = reg.score(X_test, y_test)
             elif optionScore == 2:
-                plt.scatter(i+5,MAE(reg,X_test, y_test), c='black')
+                error = MAE(reg,X_test, y_test)
             elif optionScore == 3:
-                plt.scatter(i+5,MAEP(reg,X_test, y_test), c='black')
+                error = MAEP(reg,X_test, y_test)
+            plt.scatter(i+5,error, c='black')
+            if(returnScores):
+                errors = np.append(errors, error)
     plt.xlabel('Time used')
     plt.ylabel('Score')
     t = 'Ridge regression - Combined Features - '
@@ -552,14 +561,17 @@ def combined(w, iterations = 2,binned = False, pCA = False, optionX = 0,optionSc
     if os:
         t = t+'OS'
 
-    plt.title(t) # i2, b, p, o1,s1,OS = i2bp01s1os - add to title/ generate name
+    plt.title(t) 
     if(saveOrShow):
         plt.show()
     else:    
         
         plt.savefig(t + 'combined.png')
+    
+    if(returnScores):
+        return errors
 
-# combined(True,iterations=3,optionX=0, optionScore=3)
+# A function which plots the descriptors against critical power
 def descriptorClusters():
     des, groups = descriptors()
     p = POgiven()
@@ -567,57 +579,6 @@ def descriptorClusters():
         plt.scatter(des[:,d],p)
         plt.savefig(str(d )+ 'descriptor.png')#
         plt.figure()
-
-descriptorClusters()
-# combined(True, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = True, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = False, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
-# combined(True, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = True, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = False, pCA = True, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = True)
-# combined(True, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = True, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = False, pCA = True, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
-# combined(True, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = True)
-
-# combined(False, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = True, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = False, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
-# combined(False, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = True, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = False, pCA = True, optionX = 1,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = False, pCA = False, optionX = 1,optionScore = 3,saveOrShow = False, os = True)
-# combined(False, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = True, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = False, pCA = True, optionX = 2,optionScore = 3,saveOrShow = False, os = False)
-# combined(False, iterations = 30,binned = False, pCA = False, optionX = 2,optionScore = 3,saveOrShow = False, os = True)
-
-# Tasks:
-# explore what descriptors are most useful
-# equalise classes for sex for test and train split
-# clustering of desciptors see any groups
-# use less for loops when calculating values and speed up code
-# dont run whole for 30 iterations just 5-35 seconds
-
-# find out current error 3%?
-# redo all graph images 
-# need to use combined to suggest a model aka use 20 secs of data and then generate and save best model
-# implement neural networks
-#formular for CP - model to workout formular unsupervisored 
-# start report - rewrite introduction, related work
-# start presentation
-# start project logbook - research practice and professionalism
-
-
-
-# Notes:
-# given peaks are from whole test so cant be used - we also dont have data they are generated from
-# standard score - 'name' - is the amount of variance that can be explained by the model
-# w' is the area under the curve above this critical power
-# W Prime has lot more needing predicting baseline is pretty good for CP
 
 
 
@@ -628,4 +589,25 @@ descriptorClusters()
 # Cgraph()
 # POplotted()
 # VO2_plotted()
+# descriptorClusters()
+# errors = combined(True, returnScores = True, endT=15,iterations = 3,binned = False, pCA = False, optionX = 3,optionScore = 3,saveOrShow = False, os = False)
+# errors = combined(True, returnScores = True, endT=25,iterations = 13,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# print("Critical power prediction: \n")
+errors = combined(True, returnScores = True,startT=15, endT=25,iterations = 100,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+print("Error - not using PCA, binning or oversampling \n")
+print(np.min(errors))
+# combined(True, returnScores = False,startT=0, endT=25,iterations = 1,binned = True, pCA = True, optionX = 0,optionScore = 3,saveOrShow = True, os = True)
+
+# errors = combined(True, returnScores = True,startT=15, endT=25,iterations = 40,binned = True, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
+# print("Error - using PCA, binning and oversampling \n")
+# print(np.min(errors))
+# errors = combined(True, returnScores = True,startT=15, endT=25,iterations = 40,binned = False, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
+# print("Error - using PCA and oversampling \n")
+# print(np.min(errors))
+# errors = combined(True, returnScores = True,startT=15, endT=25,iterations = 40,binned = False, pCA = False, optionX = 0,optionScore = 3,saveOrShow = False, os = True)
+# print("Error - not using oversampling \n")
+# print(np.min(errors))
+# errors = combined(True, returnScores = True,startT=15, endT=25,iterations = 40,binned = False, pCA = True, optionX = 0,optionScore = 3,saveOrShow = False, os = False)
+# print("Error - using PCA \n")
+# print(np.min(errors))# combined(True, t=10,iterations = 3,binned = False, pCA = False, optionX = 3,optionScore = 3,saveOrShow = True, os = False)
 
